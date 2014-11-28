@@ -1,0 +1,42 @@
+object MainForm: TMainForm
+  Left = 294
+  Height = 106
+  Top = 115
+  Width = 370
+  Caption = 'MainForm'
+  ClientHeight = 106
+  ClientWidth = 370
+  Font.CharSet = RUSSIAN_CHARSET
+  Font.Height = -13
+  Font.Name = 'Tahoma'
+  Font.Pitch = fpVariable
+  Font.Quality = fqDraft
+  OnCreate = FormCreate
+  OnDestroy = FormDestroy
+  LCLVersion = '1.2.6.0'
+  object StartServerButton: TButton
+    Left = 10
+    Height = 25
+    Top = 10
+    Width = 350
+    Caption = 'Start Server'
+    OnClick = StartServerButtonClick
+    TabOrder = 0
+  end
+  object StopServerButton: TButton
+    Left = 10
+    Height = 25
+    Top = 40
+    Width = 350
+    Caption = 'Stop Server'
+    OnClick = StopServerButtonClick
+    TabOrder = 1
+  end
+  object PathEdit: TEdit
+    Left = 10
+    Height = 24
+    Top = 70
+    Width = 350
+    TabOrder = 2
+  end
+end

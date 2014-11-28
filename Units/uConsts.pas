@@ -21,7 +21,7 @@ interface
 const
   STitle = 'SyncServer';
   SVersion = '0.0.1';
-  SBuild = '11';
+  SBuild = '14';
 
   CR = #$0d;
   LF = #$0a;

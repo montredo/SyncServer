@@ -110,7 +110,10 @@ begin
   begin
     try
       repeat
-        Sleep(0);
+        {$IFDEF MSWINDOWS}
+        //not drain CPU on large downloads...
+        Sleep(1);
+        {$ENDIF}
 
         Name := SearchRec.Name;
 
@@ -198,6 +201,9 @@ begin
 
     if ClientSocket <> INVALID_SOCKET then
     begin
+      if WSAGetLastError = WSAEWOULDBLOCK then
+        Continue;
+
       // перевод сокета в блокирующий режим
       NonBlockingArg := 0;
       if ioctlsocket(ClientSocket, FIONBIO, NonBlockingArg) = SOCKET_ERROR then
@@ -205,9 +211,6 @@ begin
         closesocket(FServerSocket);
         Exit;
       end;
-
-      if WSAGetLastError = WSAEWOULDBLOCK then
-        Continue;
 
       ClientThread := TClientThread.Create(True);
       ClientThread.FreeOnTerminate := True;
@@ -219,7 +222,10 @@ begin
       ClientThread.Start;
     end;
 
+    {$IFDEF MSWINDOWS}
+    //not drain CPU on large downloads...
     Sleep(1);
+    {$ENDIF}
   end;
 
   //shutdown(FServerSocket, SD_BOTH);

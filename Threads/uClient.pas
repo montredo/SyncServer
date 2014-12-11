@@ -33,22 +33,22 @@ type
     FRequestList: TStringList;
     FResponseList: TStringList;
 
-    FBuffer: AnsiString;
+    FBuffer: string;
 
-    FResponseBuffer: AnsiString;
+    FResponseBuffer: string;
 
     FResultCode: Integer;
-    FResultStatus: AnsiString;
+    FResultStatus: string;
 
-    FMethod: AnsiString;
-    FDocument: AnsiString;
-    FURLDocument: AnsiString;
-    FFileDocument: AnsiString;
+    FMethod: string;
+    FDocument: string;
+    FURLDocument: string;
+    FFileDocument: string;
 
     FFileIndexDocument: Int64;
 
     FAcceptRanges: Int64;
-    FContentType: AnsiString;
+    FContentType: string;
     FContentLength: Int64;
 
     FLastError: Integer;
@@ -56,20 +56,19 @@ type
     FRequestLength: Int64;
     FResponseLength: Int64;
 
-
     FScanPath: string;
 
     function WaitingRequest(): Int64;
-    function RequestBuffer(): AnsiString;
-    function RequestString(): AnsiString;
-    function RequestData(): AnsiString;
+    function RequestBuffer(): string;
+    function RequestString(): string;
+    function RequestData(): string;
 
-    procedure SendString(AValue: AnsiString);
-    procedure SendFile(const AFileName: AnsiString; AOffset: Int64 = -1);
+    procedure SendString(AValue: string);
+    procedure SendFile(const AFileName: string; AOffset: Int64 = -1);
   protected
     procedure Execute; override;
   public
-    constructor Create(CreateSuspended: Boolean);
+    constructor Create(CreateSuspended: boolean);
     destructor Destroy; override;
 
     property Socket: TSocket read FClientSocket write FClientSocket;
@@ -81,7 +80,7 @@ implementation
 uses
   uAccept, uGZIPUtils, uConsts, zstream, fpjson, jsonparser;
 
-function EncodeURLElement(AValue: AnsiString): AnsiString;
+function EncodeURLElement(AValue: string): string;
 var
   I: Integer;
 begin
@@ -93,12 +92,12 @@ begin
       Result := Result + AValue[I];
 end;
 
-function DecodeTriplet(const Value: AnsiString; Delimiter: AnsiChar): AnsiString;
+function DecodeTriplet(const Value: string; Delimiter: AnsiChar): string;
 var
   x, l, lv: Integer;
   c: AnsiChar;
-  b: Byte;
-  bad: Boolean;
+  b: byte;
+  bad: boolean;
 begin
   lv := Length(Value);
   SetLength(Result, lv);
@@ -114,64 +113,64 @@ begin
       Inc(l);
     end
     else
-      if x < lv then
-      begin
-        case Value[x] of
-          #13:
-            if (Value[x + 1] = #10) then
-              Inc(x, 2)
-            else
-              Inc(x);
-          #10:
-            if (Value[x + 1] = #13) then
-              Inc(x, 2)
-            else
-              Inc(x);
+    if x < lv then
+    begin
+      case Value[x] of
+        #13:
+          if (Value[x + 1] = #10) then
+            Inc(x, 2)
           else
-          begin
-            bad := False;
-            case Value[x] of
-              '0'..'9': b := (Byte(Value[x]) - 48) shl 4;
-              'a'..'f', 'A'..'F': b := ((Byte(Value[x]) and 7) + 9) shl 4;
-              else
-              begin
-                b := 0;
-                bad := True;
-              end;
-            end;
-            case Value[x + 1] of
-              '0'..'9': b := b or (Byte(Value[x + 1]) - 48);
-              'a'..'f', 'A'..'F': b := b or ((Byte(Value[x + 1]) and 7) + 9);
-              else
-                bad := True;
-            end;
-            if bad then
-            begin
-              Result[l] := c;
-              Inc(l);
-            end
+            Inc(x);
+        #10:
+          if (Value[x + 1] = #13) then
+            Inc(x, 2)
+          else
+            Inc(x);
+        else
+        begin
+          bad := False;
+          case Value[x] of
+            '0'..'9': b := (byte(Value[x]) - 48) shl 4;
+            'a'..'f', 'A'..'F': b := ((byte(Value[x]) and 7) + 9) shl 4;
             else
             begin
-              Inc(x, 2);
-              Result[l] := AnsiChar(b);
-              Inc(l);
+              b := 0;
+              bad := True;
             end;
           end;
+          case Value[x + 1] of
+            '0'..'9': b := b or (byte(Value[x + 1]) - 48);
+            'a'..'f', 'A'..'F': b := b or ((byte(Value[x + 1]) and 7) + 9);
+            else
+              bad := True;
+          end;
+          if bad then
+          begin
+            Result[l] := c;
+            Inc(l);
+          end
+          else
+          begin
+            Inc(x, 2);
+            Result[l] := AnsiChar(b);
+            Inc(l);
+          end;
         end;
-      end
-      else
-        break;
+      end;
+    end
+    else
+      break;
   end;
   Dec(l);
   SetLength(Result, l);
 end;
 
-function DecodeURLElement(AValue: AnsiString): AnsiString;
+function DecodeURLElement(AValue: string): string;
 begin
   Result := DecodeTriplet(AValue, '%');
 end;
 
-function DateTimeRFCEncode(DateTime: TDateTime): AnsiString;
+function DateTimeRFCEncode(DateTime: TDateTime): string;
 const
   DayNames: array[1..7] of string = (
     'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat');
@@ -180,7 +179,7 @@ const
     'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec');
 var
-  Year, Month, Day: Word;
+  Year, Month, Day: word;
 begin
   DecodeDate(DateTime, Year, Month, Day);
 
@@ -188,7 +187,7 @@ begin
     Day, MonthNames[Month], FormatDateTime('yyyy hh":"nn":"ss', DateTime)]);
 end;
 
-function DateTimeRFC: AnsiString;
+function DateTimeRFC: string;
 var
   SystemTime: TSystemTime;
   DateTime: TDateTime;
@@ -201,9 +200,54 @@ begin
   {$ENDIF}
 end;
 
+function GetContentType(AFileName: string): string;
+type
+  MIMEName = record
+    mime_ext: string;
+    mime_type: string;
+  end;
+
+const
+  MIMENames: array [0..15] of MIMEName = (
+    (mime_ext: '.ico'; mime_type: 'image/x-icon'),
+    (mime_ext: '.htm'; mime_type: 'text/html'),
+    (mime_ext: '.html'; mime_type: 'text/html'),
+    (mime_ext: '.css'; mime_type: 'text/css'),
+    (mime_ext: '.js'; mime_type: 'application/javascript'),
+    (mime_ext: '.gif'; mime_type: 'image/gif'),
+    (mime_ext: '.jpg'; mime_type: 'image/jpg'),
+    (mime_ext: '.png'; mime_type: 'image/png'),
+    (mime_ext: '.txt'; mime_type: 'text/plain'),
+    (mime_ext: '.mp3'; mime_type: 'audio/mpeg'),
+    (mime_ext: '.ts'; mime_type: 'video/mp2t'),
+    (mime_ext: '.mp4'; mime_type: 'video/mp4'),
+    (mime_ext: '.mkv'; mime_type: 'video/x-matroska'),
+    (mime_ext: '.mpeg'; mime_type: 'video/mpeg'),
+    (mime_ext: '.mpg'; mime_type: 'video/mpeg'),
+    (mime_ext: '.avi'; mime_type: 'video/x-msvideo')
+    );
+
+var
+  FileExt: string;
+  I: Integer;
+begin
+  Result := 'application/octet-stream';
+
+  FileExt := AnsiLowerCase(ExtractFileExt(AFileName));
+
+  for I := Low(MIMENames) to High(MIMENames) do
+  begin
+    if MIMENames[I].mime_ext = FileExt then
+    begin
+      Result := MIMENames[I].mime_type;
+      Break;
+    end;
+  end;
+end;
+
 { TClientThread }
 
-constructor TClientThread.Create(CreateSuspended: Boolean);
+constructor TClientThread.Create(CreateSuspended: boolean);
 begin
   inherited Create(CreateSuspended);
 
@@ -233,7 +277,7 @@ end;
 
 function TClientThread.WaitingRequest(): Int64;
 var
-  RequestLength: Cardinal;
+  RequestLength: cardinal;
 begin
   Result := 0;
 
@@ -245,7 +289,7 @@ begin
     Result := c64k;
 end;
 
-function TClientThread.RequestBuffer(): AnsiString;
+function TClientThread.RequestBuffer(): string;
 var
   RequestLength: Int64;
 begin
@@ -273,7 +317,7 @@ begin
   FLastError := WSAGetLastError;
 end;
 
-function TClientThread.RequestString(): AnsiString;
+function TClientThread.RequestString(): string;
 begin
   Result := '';
 
@@ -283,9 +327,9 @@ begin
   FBuffer := FBuffer;
 end;
 
-function TClientThread.RequestData: AnsiString;
+function TClientThread.RequestData: string;
 var
-  S, M: AnsiString;
+  S, M: string;
 begin
   S := Trim(RequestString());
 
@@ -302,8 +346,11 @@ begin
 
     if UTF8Pos('range:', UTF8LowerCase(S)) > 0 then
     begin
-      Delete(S, 1, UTF8Pos('=', S));
-      FAcceptRanges := StrToInt64Def(UTF8Copy(S, 1, UTF8Pos('-', S) - 1), -1);
+      //Delete(S, 1, UTF8Pos('=', S));
+      //FAcceptRanges := StrToInt64Def(UTF8Copy(S, 1, UTF8Pos('-', S) - 1), -1);
+
+      Delete(S, 1, Pos('=', S));
+      FAcceptRanges := StrToInt64Def(Copy(S, 1, Pos('-', S) - 1), -1);
       FAcceptRanges := FAcceptRanges;
     end;
 
@@ -312,19 +359,18 @@ begin
   end;
 end;
 
-procedure TClientThread.SendString(AValue: AnsiString);
+procedure TClientThread.SendString(AValue: string);
 var
   ResponseLength: Int64;
 begin
   ResponseLength := send(FClientSocket, PAnsiChar(AValue)^, Length(AValue), 0);
+  FLastError := WSAGetLastError;
 
   if ResponseLength > 0 then
     Inc(FResponseLength, ResponseLength);
-
-  FLastError := WSAGetLastError;
 end;
 
-procedure TClientThread.SendFile(const AFileName: AnsiString; AOffset: Int64);
+procedure TClientThread.SendFile(const AFileName: string; AOffset: Int64);
 var
   FileHandle: THandle;
 
@@ -333,7 +379,7 @@ var
 
   FileReadln: Int64;
 
-  Range: AnsiString;
+  Range: ansistring;
 begin
   FileOffset := 0;
   FileLength := 0;
@@ -351,16 +397,12 @@ begin
     SendString('Connection: close' + CRLF + CRLF);
 
     Exit;
-  end
-  else
-  begin
-
   end;
 
   try
     FileLength := FileSeek(FileHandle, FileOffset, soFromEnd);
 
-    FContentType := 'application/octet-stream';
+    FContentType := GetContentType(AFileName);
 
     if (FileLength = 0) or (AOffset > FileLength) then
     begin
@@ -374,7 +416,6 @@ begin
 
       Exit;
     end;
-
 
     if AOffset >= 0 then
     begin
@@ -445,6 +486,17 @@ begin
 
     if FMethod = 'GET' then
     begin
+      if FURLDocument = '/favicon.ico' then
+      begin
+        FResultCode := 404;
+        FResultStatus := 'Not Found';
+
+        SendString('HTTP/1.1 ' + IntToStr(FResultCode) + ' ' + FResultStatus + CRLF);
+        SendString('Date: ' + DateTimeRFC + CRLF);
+        SendString('Server: ' + STitle + '/' + SVersion + CRLF);
+        SendString('Connection: close' + CRLF + CRLF);
+      end;
+
       if FURLDocument = '/' then
       begin
         FResultCode := 200;
@@ -483,62 +535,61 @@ begin
         SendString('Connection: close' + CRLF + CRLF);
 
         SendString(FResponseBuffer);
-      end
-      else
+      end;
+
+      if FURLDocument = '/html' then
       begin
-        if FURLDocument = '/html' then
+        FResultCode := 200;
+        FResultStatus := 'OK';
+
+        FResponseBuffer := '';
+
+        for I := Low(FileArray) to High(FileArray) do
         begin
-          FResultCode := 200;
-          FResultStatus := 'OK';
-
-          FResponseBuffer := '';
-
-          for I := Low(FileArray) to High(FileArray) do
-          begin
-            FResponseBuffer := FResponseBuffer +
-              Format('<p>%s - <a href="/getFile/%d/%s">%s</a></p>',
-              [FileArray[I].FilePath, I + 1,
-              EncodeURLElement(FileArray[I].FileName), FileArray[I].FileName]) + #13#10;
-          end;
-
-          FContentType := 'text/html; charset=utf-8';
-          FContentLength := Length(FResponseBuffer);
-
-          SendString('HTTP/1.1 ' + IntToStr(FResultCode) + ' ' + FResultStatus + CRLF);
-          SendString('Date: ' + DateTimeRFC + CRLF);
-          SendString('Server: ' + STitle + '/' + SVersion + CRLF);
-          SendString('Content-Type: ' + FContentType + CRLF);
-          SendString('Content-Length: ' + IntToStr(FContentLength) + CRLF);
-          SendString('Connection: close' + CRLF + CRLF);
-
-          SendString(FResponseBuffer);
+          FResponseBuffer :=
+            FResponseBuffer + Format('<p>%s - <a href="/getFile/%d/%s">%s</a></p>',
+            [FileArray[I].FilePath, I + 1,
+            EncodeURLElement(FileArray[I].FileName), FileArray[I].FileName]) + #13#10;
         end;
 
-        if FURLDocument = '/getClient/' then
+        FContentType := 'text/html; charset=utf-8';
+        FContentLength := Length(FResponseBuffer);
+
+        SendString('HTTP/1.1 ' + IntToStr(FResultCode) + ' ' + FResultStatus + CRLF);
+        SendString('Date: ' + DateTimeRFC + CRLF);
+        SendString('Server: ' + STitle + '/' + SVersion + CRLF);
+        SendString('Content-Type: ' + FContentType + CRLF);
+        SendString('Content-Length: ' + IntToStr(FContentLength) + CRLF);
+        SendString('Connection: close' + CRLF + CRLF);
+
+        SendString(FResponseBuffer);
+      end;
+
+      if FURLDocument = '/getClient/' then
+      begin
+        SendFile(ExtractFilePath(ParamStrUTF8(0)) + 'SyncClient.exe', FAcceptRanges);
+      end;
+
+      if UTF8Pos('/getFile/', FURLDocument) > 0 then
+      begin
+        FFileDocument := FURLDocument;
+        Delete(FFileDocument, 1, Length('/getFile/'));
+        FFileDocument := UTF8Copy(FFileDocument, 1, UTF8Pos('/', FFileDocument) - 1);
+
+        FFileDocument := FFileDocument;
+        FFileIndexDocument := StrToInt64Def(FFileDocument, -1);
+
+        if (FFileIndexDocument > 0) and (FFileIndexDocument <= Length(FileArray)) then
         begin
-          SendFile(ExtractFilePath(ParamStrUTF8(0)) + 'SyncClient.exe', FAcceptRanges);
-        end;
-
-        if UTF8Pos('/getFile/', FURLDocument) > 0 then
-        begin
-          FFileDocument := FURLDocument;
-          Delete(FFileDocument, 1, Length('/getFile/'));
-          FFileDocument := UTF8Copy(FFileDocument, 1, UTF8Pos('/', FFileDocument) - 1);
-
-          FFileDocument := FFileDocument;
-          FFileIndexDocument := StrToInt64Def(FFileDocument, -1);
-
-          if (FFileIndexDocument > 0) and (FFileIndexDocument <= Length(FileArray)) then
-          begin
-            SendFile(FScanPath + FileArray[FFileIndexDocument - 1].FilePath +
-              FileArray[FFileIndexDocument - 1].FileName, FAcceptRanges);
-          end;
+          SendFile(FScanPath + FileArray[FFileIndexDocument - 1].FilePath +
+            FileArray[FFileIndexDocument - 1].FileName, FAcceptRanges);
         end;
       end;
+
     end
     else
     begin
-      { ... }
+      Exit;
     end;
 
   finally
